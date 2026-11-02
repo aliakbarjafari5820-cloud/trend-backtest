@@ -62,8 +62,36 @@ def run(df, kind, n_entry, n_exit=None, atr_mult=3):
         curve[i+1] = eq*(c[i+1]/entry) if pos == 1 else eq
     return pd.Series(curve, index=pd.to_datetime(t, unit="ms")), np.array(trades)
 
+def run_ichi(df, t_n, k_n, b_n):
+    o, h, l, c, t = [df[x].values for x in "ohlct"]
+    H, L = pd.Series(h), pd.Series(l)
+    tenkan = ((H.rolling(t_n).max() + L.rolling(t_n).min())/2).values
+    kijun = ((H.rolling(k_n).max() + L.rolling(k_n).min())/2).values
+    spanA = pd.Series((tenkan + kijun)/2).shift(k_n).values                      # ابر k_n کندل جلوتر رسم می‌شه
+    spanB = ((H.rolling(b_n).max() + L.rolling(b_n).min())/2).shift(k_n).values
+    lag = pd.Series(c).shift(k_n).values                                          # چیکو: قیمت فعلی در برابر k_n کندل قبل
+    pos, eq, entry = 0, 1.0, 0.0
+    curve = np.ones(len(c)); trades = []
+    for i in range(b_n + k_n, len(c)-1):
+        sig = pos
+        top = max(spanA[i], spanB[i])
+        if pos == 0:
+            if c[i] > top and tenkan[i] > kijun[i] and c[i] > lag[i]: sig = 1
+        elif c[i] < kijun[i]: sig = 0
+        if sig != pos:
+            px = o[i+1]
+            if pos == 1:
+                trades.append(px/entry - 1 - 2*FEE); eq *= (px/entry)*(1-FEE)
+            if sig == 1:
+                entry = px; eq *= (1-FEE)
+            pos = sig
+        curve[i+1] = eq*(c[i+1]/entry) if pos == 1 else eq
+    return pd.Series(curve, index=pd.to_datetime(t, unit="ms")), np.array(trades)
+
 def configs(tf):
     per_day = 1440 // ALL_TFS[tf]
+    if os.environ.get("STRATEGY") == "ichimoku":
+        return {"Ichimoku 9/26/52": ("ichi", 9, 26, 52), "Ichimoku 20/60/120": ("ichi", 20, 60, 120)}
     return {
         "Turtle 20/10 کندل":        ("turtle", 20, 10),
         "Chandelier 20 کندل":       ("chandelier", 20, None),
@@ -77,8 +105,8 @@ for tf in TFS:
         curves, all_tr = [], []
         for sym in SYMS:
             df = get(sym, tf)
-            kind, ne, nx = configs(tf)[name]
-            cv, tr = run(df, kind, ne, nx)
+            cfg = configs(tf)[name]
+            cv, tr = run_ichi(df, *cfg[1:]) if cfg[0] == "ichi" else run(df, *cfg)
             curves.append(cv.resample("1D").last().ffill()); all_tr.append(tr)
             c1 = cv / cv.iloc[0]
             rows.append(dict(tf=tf, strategy=name, coin=sym[:-4], total_pct=round((c1.iloc[-1]-1)*100),
