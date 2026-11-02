@@ -3,7 +3,7 @@
 داده‌ها یک بار دانلود و توی پوشهٔ data ذخیره می‌شن. نتیجه توی results.csv هم ذخیره می‌شه."""
 import os, sys, time, requests, numpy as np, pandas as pd
 
-SYMS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"]
+SYMS = os.environ.get("SYMS", "BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,BNBUSDT").split(",")
 ALL_TFS = {"5m": 5, "15m": 15, "30m": 30, "1h": 60, "4h": 240}
 TFS = {k: v for k, v in ALL_TFS.items() if len(sys.argv) < 2 or k in sys.argv[1:]}
 YEARS = 5
@@ -87,7 +87,7 @@ for tf in TFS:
         port = pd.concat(curves, axis=1).ffill().dropna().mean(axis=1); port /= port.iloc[0]
         tr = np.concatenate(all_tr)
         yearly = port.resample("YE").last(); yearly = (yearly/yearly.shift().fillna(1)-1)*100
-        rows.append(dict(tf=tf, strategy=name, coin="سبد ۵ ارز", total_pct=round((port.iloc[-1]-1)*100),
+        rows.append(dict(tf=tf, strategy=name, coin="سبد", total_pct=round((port.iloc[-1]-1)*100),
                          maxDD_pct=round((1-port/port.cummax()).max()*100), trades=len(tr),
                          win_pct=round((tr > 0).mean()*100) if len(tr) else 0,
                          PF=round(tr[tr > 0].sum()/max(1e-9, -tr[tr < 0].sum()), 2),
@@ -96,7 +96,7 @@ for tf in TFS:
 
 res = pd.DataFrame(rows)
 res.to_csv(f"results_{'_'.join(TFS)}.csv", index=False, encoding="utf-8-sig")
-print("\nخرید و نگه داشتن (سبد ۵ ارز):")
+print("\nخرید و نگه داشتن:")
 bh = pd.concat([(lambda d: pd.Series(d.c.values, index=pd.to_datetime(d.t, unit="ms")))(get(s, list(TFS)[-1])).resample("1D").last()
                 for s in SYMS], axis=1).ffill().dropna()
 bh = (bh/bh.iloc[0]).mean(axis=1)
