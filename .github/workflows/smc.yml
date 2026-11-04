@@ -1,5 +1,5 @@
 name: smc-pa-hybrid
-on: [workflow_dispatch, push]
+on: [workflow_dispatch]
 permissions:
   contents: write
 jobs:
@@ -42,7 +42,8 @@ jobs:
       - run: pip install pandas numpy
       - uses: actions/download-artifact@v4
         with: { pattern: "trades-*", path: smc/all }
-      - run: cd smc && python aggregate.py
+      - run: pip install requests
+      - run: cd smc && python aggregate.py && python report_html.py results results/FINAL_COMPARISON_REPORT.html
       - run: |
           git config user.name "github-actions"; git config user.email "actions@github.com"
           rm -rf results && cp -r smc/results results

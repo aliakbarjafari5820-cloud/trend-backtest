@@ -80,9 +80,9 @@ def curve_metrics(c):
                 calmar=round(cagr / dd, 2) if dd > 0 else 0)
 
 
-main, seg_rows, reg_rows, coin_rows, setup_rows, equity = [], [], [], [], [], {}
+main, seg_rows, reg_rows, coin_rows, setup_rows, equity, taken_all = [], [], [], [], [], {}, []
 for (s, tf), X in T.groupby(["strategy", "tf"]):
-    c, tk = portfolio(X); equity[(s, tf)] = c
+    c, tk = portfolio(X); equity[(s, tf)] = c; taken_all.append(tk.tail(1500))
     st, cm = trade_stats(tk.R_net), curve_metrics(c)
     per_coin = X.groupby("symbol").R_net.agg(["count", "sum", "mean"])
     main.append(dict(strategy=s, tf=tf, **cm, **st,
@@ -109,6 +109,11 @@ M.to_csv("results/summary.csv", index=False); SEG.to_csv("results/split_60_20_20
 REG.to_csv("results/by_regime.csv", index=False); COIN.to_csv("results/by_coin.csv", index=False)
 SET.to_csv("results/by_setup.csv", index=False)
 for tf, Y in M.groupby("tf"): Y.to_csv(f"results/by_tf/summary_{tf}.csv", index=False)
+EQ = pd.DataFrame({f"{s} {tf}": c.groupby(c.index.floor("D")).last() for (s, tf), c in equity.items()}).sort_index().ffill()
+EQ.round(2).to_csv("results/equity_daily.csv")
+cols = ["strategy", "tf", "symbol", "side", "setup", "entry_t", "exit_t", "entry", "sl", "tp", "exit", "stop_pct",
+        "leverage", "R_gross", "fee_R", "funding_R", "R_net", "hours", "regime", "segment", "liquidated"]
+pd.concat(taken_all)[cols].round(6).to_csv("results/trades_sample.csv", index=False)
 
 # --- Walk-Forward: هر بار ۶ ماه آموزش → بهترین ترکیب (استراتژی × تایم) بر اساس Calmar → ۳ ماه بعد اجرا
 start = pd.to_datetime(tmin, unit="ms").normalize(); end = pd.to_datetime(tmax, unit="ms")
