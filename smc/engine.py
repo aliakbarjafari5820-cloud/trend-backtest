@@ -6,14 +6,17 @@ import pandas as pd
 PARAMS = dict(
     swing_k=2,            # سوئینگ: ۲ کندل قبل و ۲ کندل بعد (طبق متن)؛ تأیید بعد از بسته شدن کندل دوم
     atr_n=14,             # ATR برای تلورانس‌ها
-    retest_tol_atr=0.10,  # پولبک «رسیده به سطح» = لو تا سطح + ۰.۱ ATR
+    brk_min_atr=0.50,     # حداقل قدرت شکست: کلوز حداقل ۰.۵ ATR اون‌ور سطح (برای شکست PA و BOS)
+    retest_tol_atr=0.25,  # تلورانس پولبک: لو تا سطح + ۰.۲۵ ATR
     fail_close_atr=0.50,  # اگه کلوز ۰.۵ ATR اون‌ور سطح بسته بشه، شکست باطله
     pa_wait=20,           # حداکثر ۲۰ کندل برای پولبک + تأیید بعد از شکست (PA)
-    sweep_reclaim=3,      # سوئیپ: لو زیر کف و کلوز دوباره بالای کف، حداکثر طی ۳ کندل
+    sweep_reclaim=2,      # اعتبار سوئیپ: کلوز دوباره این‌ور سطح، حداکثر طی ۲ کندل
     bos_wait=20,          # بعد از سوئیپ، حداکثر ۲۰ کندل تا BOS/CHoCH
-    zone_wait=30,         # بعد از BOS، حداکثر ۳۰ کندل تا برگشت به OB/FVG و تأیید
+    zone_wait=20,         # اعتبار بازگشت به OB/FVG: حداکثر ۲۰ کندل بعد از BOS
     sl_buffer_atr=0.10,   # فاصلهٔ محافظتی حد ضرر = ۰.۱ ATR
-    rr=2.0,               # حد سود = ۲ برابر ریسک
+    rr=2.0,               # حد سود = ۲R خالص (بعد از کارمزد و اسلیپیج ورود و خروج)
+    sl_min_atr=0.10,      # فاصلهٔ حد ضرر باید بین ۰.۱ و ۳ ATR باشه، وگرنه معامله رد می‌شه
+    sl_max_atr=3.00,
     min_stop_pct=0.0005,  # حد ضرر کمتر از ۰.۰۵٪ قیمت = معامله رد می‌شه (غیرقابل اجرا)
 )
 # کندل تأیید: کندل صعودی (کلوز > اپن) که بالای سطح/لبهٔ پایین ناحیه بسته بشه (برای فروش برعکس).
@@ -77,11 +80,12 @@ def simulate_exit(o, h, l, c, t, k, d, sl, tp):
     return None, None
 
 
-def make_trade(df, k, d, sl, P, kind, setup):
+def make_trade(df, k, d, sl, P, kind, setup, atr_val):
     o, h, l, c, t = df["o"].values, df["h"].values, df["l"].values, df["c"].values, df["t"].values
     e = o[k]; risk = (e - sl) * d
     if risk <= 0 or risk / e < P["min_stop_pct"]: return None
-    tp = e + d * P["rr"] * risk
+    if not (P["sl_min_atr"] * atr_val <= risk <= P["sl_max_atr"] * atr_val): return None
+    tp = e + d * (P["rr"] * risk + 2 * (COSTS["fee"] + COSTS["slip"]) * e)   # ۲R خالص بعد از هزینه‌ها
     xi, xp = simulate_exit(o, h, l, c, t, k, d, sl, tp)
     if xi is None: return None
     stop_pct = risk / e
@@ -103,14 +107,17 @@ def run_pa(df, P=PARAMS):
     for i in range(1, n - 1):
         S.update(i); tr = S.trend()
         # شکست سقف/کف معتبر قبلی در جهت روند (فقط با کلوز)
-        if tr == 1 and S.highs:
-            lv, j = S.highs[-1]
-            if ("H", j) not in used and c[i] > lv and c[i - 1] <= lv:
-                used.add(("H", j)); pend.append(dict(d=1, lv=lv, bi=i, touched=False))
-        if tr == -1 and S.lows:
-            lv, j = S.lows[-1]
-            if ("L", j) not in used and c[i] < lv and c[i - 1] >= lv:
-                used.add(("L", j)); pend.append(dict(d=-1, lv=lv, bi=i, touched=False))
+        # هر سطح فقط اولین بار که کلوز با قدرت ≥ ۰.۵ ATR ازش رد بشه حساب می‌شه (اگه روند هم‌جهت نبود، سطح می‌سوزه)
+        if S.highs:
+            lv, j = S.highs[-1]; th = lv + P["brk_min_atr"] * A[i]
+            if ("H", j) not in used and c[i] >= th and c[i - 1] < th:
+                used.add(("H", j))
+                if tr == 1: pend.append(dict(d=1, lv=lv, bi=i, touched=False))
+        if S.lows:
+            lv, j = S.lows[-1]; th = lv - P["brk_min_atr"] * A[i]
+            if ("L", j) not in used and c[i] <= th and c[i - 1] > th:
+                used.add(("L", j))
+                if tr == -1: pend.append(dict(d=-1, lv=lv, bi=i, touched=False))
         keep = []
         for p in pend:
             d, lv = p["d"], p["lv"]
@@ -125,7 +132,7 @@ def run_pa(df, P=PARAMS):
                 ref = S.lows if d == 1 else S.highs
                 if ref:
                     sl = ref[-1][0] - d * P["sl_buffer_atr"] * A[i]
-                    tdict = make_trade(df, i + 1, d, sl, P, "PA", "BRK_PULLBACK")
+                    tdict = make_trade(df, i + 1, d, sl, P, "PA", "BRK_PULLBACK", A[i])
                     if tdict:
                         trades.append(tdict)
                         busy_until = int(np.searchsorted(df["t"].values, tdict["exit_t"]))
@@ -183,7 +190,7 @@ def run_smc(df, P=PARAMS, hybrid=False):
             if s["stage"] == "bos":
                 if i - s["ri"] > P["bos_wait"]: st[d] = None; continue
                 ref = S.highs if d == 1 else S.lows
-                if ref and ref[-1][1] < i and (c[i] - ref[-1][0]) * d > 0:   # BOS/CHoCH با کلوز
+                if ref and ref[-1][1] < i and (c[i] - ref[-1][0]) * d >= P["brk_min_atr"] * A[i]:   # BOS/CHoCH: کلوز با قدرت ≥ ۰.۵ ATR
                     zone, zt = find_zone(o, h, l, c, s["si"], i, d)
                     if zone is None: st[d] = None; continue
                     s.update(stage="zone", bi=i, zone=zone, zt=zt, touched=False)
@@ -199,7 +206,7 @@ def run_smc(df, P=PARAMS, hybrid=False):
                     st[d] = None
                     if i + 1 > busy_until:
                         sl = s["ext"] - d * P["sl_buffer_atr"] * A[i]
-                        tdict = make_trade(df, i + 1, d, sl, P, kind, s["zt"])
+                        tdict = make_trade(df, i + 1, d, sl, P, kind, s["zt"], A[i])
                         if tdict:
                             trades.append(tdict)
                             busy_until = int(np.searchsorted(df["t"].values, tdict["exit_t"]))

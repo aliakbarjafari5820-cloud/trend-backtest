@@ -56,14 +56,17 @@ def test_find_zone_ob_and_fvg():
     assert t2 == "OB" and np.isclose(z2[0], 10.35) and np.isclose(z2[1], 10.55)
 
 
+def PA_DF():
+    return bars(path([100, 110, 105, 115, 108, 120, 116, 122.5, 120.3], 3) + [121.5, 123, 126, 130, 134, 138, 142, 146, 150])
+
+
 def test_pa_long_breakout_pullback():
-    pts = [100, 110, 105, 115, 108, 120, 112, 121.5, 120.15]
-    closes = path(pts) + [121.0, 122, 124, 127, 130, 135, 140, 145, 150]
-    df = bars(closes)
+    df = PA_DF()
     tr = run_pa(df)
     assert len(tr) >= 1, "باید یه معاملهٔ خرید پیدا کنه"
     t0 = tr[0]
-    assert t0["side"] == 1 and t0["sl"] < 112 and t0["sl"] > 111 and t0["R_gross"] == 2.0
+    # حد ضرر زیر آخرین کف (۱۱۶) با ۰.۱ ATR فاصله، و حد سود دقیقاً ۲R خالص بعد از کارمزد و اسلیپیج
+    assert t0["side"] == 1 and 115 < t0["sl"] < 116 and abs(t0["R_gross"] - t0["fee_R"] - 2.0) < 1e-9
 
 
 def test_smc_long_sweep_bos_ob():
@@ -87,10 +90,21 @@ def test_smc_long_sweep_bos_ob():
     assert x["sl"] < 98.0 and x["setup"] in ("OB", "OB+FVG", "FVG")
 
 
+def test_weak_breakout_ignored():
+    # شکست با کلوز کمتر از ۰.۵ ATR بالای سقف نباید معامله بسازه
+    df = bars(path([100, 110, 105, 115, 108, 120, 116, 120.4, 119.9], 3) + [120.3, 120.2, 120.4, 120.1])
+    assert run_pa(df) == []
+
+
+def test_stop_outside_atr_range_rejected():
+    from engine import make_trade, PARAMS
+    df = PA_DF()
+    assert make_trade(df, 20, 1, df.o[20] - 10, PARAMS, "PA", "x", 1.0) is None     # ۱۰ ATR > ۳ ATR
+    assert make_trade(df, 20, 1, df.o[20] - 0.05, PARAMS, "PA", "x", 1.0) is None   # ۰.۰۵ ATR < ۰.۱ ATR
+
+
 def test_costs_reduce_R():
-    pts = [100, 110, 105, 115, 108, 120, 112, 121.5, 120.15]
-    df = bars(path(pts) + [121.0, 122, 124, 127, 130, 135, 140, 145, 150])
-    t0 = run_pa(df)[0]
+    t0 = run_pa(PA_DF())[0]
     assert t0["R_net"] < t0["R_gross"]
 
 
@@ -99,10 +113,8 @@ def mirror(df, base=300.0):
 
 
 def test_pa_short_is_mirror_of_long():
-    pts = [100, 110, 105, 115, 108, 120, 112, 121.5, 120.15]
-    df = bars(path(pts) + [121.0, 122, 124, 127, 130, 135, 140, 145, 150])
-    s = [x for x in run_pa(mirror(df)) if x["side"] == -1]
-    assert s and np.isclose(s[0]["R_gross"], 2.0)
+    s = [x for x in run_pa(mirror(PA_DF())) if x["side"] == -1]
+    assert s and abs(s[0]["R_gross"] - s[0]["fee_R"] - 2.0) < 1e-9
 
 
 def test_random_walk_no_lookahead_edge():
