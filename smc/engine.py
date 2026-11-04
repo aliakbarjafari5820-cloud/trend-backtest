@@ -87,10 +87,12 @@ def make_trade(df, k, d, sl, P, kind, setup):
     stop_pct = risk / e
     R_gross = (xp - e) * d / risk
     hours = (t[xi] - t[k]) / 3.6e6
-    cost_R = (2 * (COSTS["fee"] + COSTS["slip"]) + COSTS["funding_8h"] * hours / 8) / stop_pct
+    fee_R = 2 * (COSTS["fee"] + COSTS["slip"]) / stop_pct
+    flat_funding_R = COSTS["funding_8h"] * hours / 8 / stop_pct   # فقط اگه دادهٔ فاندینگ واقعی نباشه استفاده می‌شه
     risk_frac = min(0.01, COSTS["max_lev"] * stop_pct)       # سقف اهرم ۲۰x
     return dict(entry_t=int(t[k]), exit_t=int(t[xi]), side=d, entry=e, sl=sl, tp=tp, exit=xp,
-                stop_pct=stop_pct, R_gross=R_gross, R_net=R_gross - cost_R, risk_frac=risk_frac,
+                stop_pct=stop_pct, R_gross=R_gross, fee_R=fee_R, funding_R=-flat_funding_R,
+                R_net=R_gross - fee_R - flat_funding_R, risk_frac=risk_frac,
                 hours=hours, strategy=kind, setup=setup)
 
 

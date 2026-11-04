@@ -17,7 +17,7 @@ jobs:
   shard:
     needs: unit
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 340
     strategy:
       fail-fast: false
       matrix: { shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19] }
@@ -42,8 +42,8 @@ jobs:
       - run: pip install pandas numpy
       - uses: actions/download-artifact@v4
         with: { pattern: "trades-*", path: smc/all }
-      - run: cd smc && python aggregate.py | tee report.txt
+      - run: cd smc && python aggregate.py
       - run: |
           git config user.name "github-actions"; git config user.email "actions@github.com"
-          mkdir -p results && cp smc/summary.csv smc/by_setup.csv smc/by_coin.csv smc/report.txt results/
-          git add results && git commit -m "SMC/PA/Hybrid backtest results" && git push
+          rm -rf results && cp -r smc/results results
+          git add results && git commit -m "SMC/PA/Hybrid backtest results" && git pull --rebase && git push
