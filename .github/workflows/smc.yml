@@ -1,0 +1,49 @@
+name: smc-pa-hybrid
+on: [workflow_dispatch, push]
+permissions:
+  contents: write
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy requests
+      - run: cd smc && python test_engine.py
+      - run: cd smc && python universe.py
+      - uses: actions/upload-artifact@v4
+        with: { name: universe, path: "smc/*.json" }
+  shard:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix: { shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy requests
+      - uses: actions/download-artifact@v4
+        with: { name: universe, path: smc }
+      - run: cd smc && python run_shard.py ${{ matrix.shard }} 20
+      - uses: actions/upload-artifact@v4
+        with: { name: "trades-${{ matrix.shard }}", path: smc/out/ }
+  aggregate:
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy
+      - uses: actions/download-artifact@v4
+        with: { pattern: "trades-*", path: smc/all }
+      - run: cd smc && python aggregate.py | tee report.txt
+      - run: |
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          mkdir -p results && cp smc/summary.csv smc/by_setup.csv smc/by_coin.csv smc/report.txt results/
+          git add results && git commit -m "SMC/PA/Hybrid backtest results" && git push
