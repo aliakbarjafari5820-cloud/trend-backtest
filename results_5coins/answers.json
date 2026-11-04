@@ -1,0 +1,16 @@
+{
+ "1_most_profitable": "PA 1h (net_profit_pct=-0.0)",
+ "2_lowest_drawdown": "PA 1h (maxDD_pct=42.0)",
+ "3_most_coins_positive": "PA 1h (coins_profitable_pct=40.0)",
+ "4_best_timeframe_by_avg_calmar": "1h",
+ "5_best_in_bull_by_expR": "PA 1h (expectancy_R=-0.08)",
+ "6_best_in_bear_by_expR": "PA 1h (expectancy_R=0.097)",
+ "7_profitable_out_of_sample": [
+  {
+   "strategy": "PA",
+   "tf": "1h",
+   "net_profit_pct": 1.0
+  }
+ ],
+ "walk_forward_final_equity_usdt": 3
+}

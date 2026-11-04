@@ -1,0 +1,6 @@
+symbol,months_found,months_error,first_month,last_month,candles,missing_candles,gaps_over_1h,funding_data,status
+BNBUSDT,24,0,2024-11,2026-10,209952,288,1,True,partial
+BTCUSDT,24,0,2024-11,2026-10,209952,288,1,True,partial
+ETHUSDT,24,0,2024-11,2026-10,209952,288,1,True,partial
+SOLUSDT,24,0,2024-11,2026-10,209952,288,1,True,partial
+XRPUSDT,24,0,2024-11,2026-10,209952,288,1,True,partial
