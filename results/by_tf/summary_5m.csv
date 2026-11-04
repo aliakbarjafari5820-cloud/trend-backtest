@@ -1,0 +1,4 @@
+strategy,tf,net_profit_usdt,net_profit_pct,maxDD_pct,sharpe,sortino,calmar,trades,win_pct,PF,expectancy_R,avg_win_R,avg_loss_R,long_expR,short_expR,hold_hours,max_leverage,liquidations,all_signals,all_signals_expR,expR_before_costs,coins_tested,coins_profitable_pct
+HYBRID,5m,-10000,-100.0,100.0,-10.03,-14.49,-1.0,19025,32.3,0.78,-0.18,2.0,-1.22,-0.232,-0.125,2.7,19.5,0,426592,-0.214,0.018,858,3.1
+PA,5m,-10000,-100.0,100.0,-9.82,-14.73,-1.0,20473,32.3,0.78,-0.187,2.0,-1.23,-0.247,-0.128,2.5,19.9,0,594833,-0.242,-0.006,858,0.9
+SMC,5m,-10000,-100.0,100.0,-13.77,-17.95,-1.0,21008,30.8,0.72,-0.241,2.0,-1.24,-0.288,-0.191,2.5,19.5,0,684779,-0.242,0.013,858,1.5
