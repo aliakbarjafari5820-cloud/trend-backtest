@@ -135,7 +135,7 @@ tr_heads = ["استراتژی", "تایم", "نماد", "جهت", "ستاپ", "�
 page = f"""<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Final Comparison Report</title>
 {CHARTJS_TAG}<style>{CSS}</style></head><body><main>
-<h1>گزارش نهایی مقایسهٔ سه استراتژی</h1>
+<h1>گزارش نهایی مقایسهٔ سه استراتژی{(" — " + os.environ["SYMBOLS"].replace("USDT","").replace(",", "، ")) if os.environ.get("SYMBOLS") else ""}</h1>
 <div class="sub">پرایس اکشن کلاسیک · اسمارت مانی · ترکیبی — همهٔ قراردادهای دائمی USDT بایننس، تایم‌های ۵ و ۱۵ دقیقه و ۱ ساعته، سرمایهٔ اولیه ۱۰٬۰۰۰ USDT، ریسک ۱٪، حداکثر ۳ معاملهٔ همزمان، با کارمزد، اسلیپیج، فاندینگ واقعی و ریسک لیکویید.</div>
 <h2>نتیجهٔ نهایی</h2><div class="card">{verdict}{answer_text()}</div>
 <h2>جدول مقایسه</h2><div class="card">{main_tbl}<p class="sub">امتیاز اتکا = تعداد شرط‌های برقرار از ۶ شرط جدول بعدی. مرتب‌سازی: امتیاز، بعد Calmar.</p></div>

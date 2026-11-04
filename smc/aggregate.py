@@ -8,6 +8,8 @@ os.makedirs("results", exist_ok=True); os.makedirs("results/by_tf", exist_ok=Tru
 
 T = pd.concat([pd.read_csv(f) for f in glob.glob("all/**/trades_*.csv", recursive=True) if os.path.getsize(f) > 5], ignore_index=True)
 Q = pd.concat([pd.read_csv(f) for f in glob.glob("all/**/quality_*.csv", recursive=True)], ignore_index=True)
+ONLY = [x for x in os.environ.get("SYMBOLS", "").split(",") if x]     # مثلاً SYMBOLS=BTCUSDT,ETHUSDT → فقط همین ارزها
+if ONLY: T, Q = T[T.symbol.isin(ONLY)].reset_index(drop=True), Q[Q.symbol.isin(ONLY)]
 Q.sort_values("symbol").to_csv("results/data_quality.csv", index=False)
 T["day"] = pd.to_datetime(T.entry_t, unit="ms").dt.floor("D")
 
