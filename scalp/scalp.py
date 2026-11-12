@@ -150,6 +150,10 @@ def strategies(df):
         return after & (c > rh) & first_l, after & (c < rl) & first_s
     orb_utc, orb_ny = orb(0, 60), orb(810, 870)
     rnd = np.random.default_rng(0).random(len(c))
+    # بازهٔ ۱۰ صبح تا ۱۰ شب تهران (UTC+3:30) = ۰۶:۳۰ تا ۱۸:۳۰ UTC؛ سیگنال روی کلوز کندل، پس زمان بسته شدن کندل ملاکه
+    step = int(np.median(np.diff(t))) if len(t) > 1 else 300_000
+    cmin = ((t + step) // 60_000) % 1440
+    teh = (cmin > 390) & (cmin <= 1110)
 
     S = {
         # --- برگشت به میانگین ---
@@ -174,6 +178,11 @@ def strategies(df):
         "FIB_618":          dict(le=up & (l <= fibL) & (c > fibL) & bull, se=dn & (h >= fibS) & (c < fibS) & bear, sl=1.5, tp=2.0, max_bars=48),
         "ORB_UTC":          dict(le=orb_utc[0], se=orb_utc[1], sl=1.5, tp=3.0, max_bars=10**6, eod=True),
         "ORB_NEWYORK":      dict(le=orb_ny[0], se=orb_ny[1], sl=1.5, tp=3.0, max_bars=10**6, eod=True),
+        # --- فقط ساعت ۱۰ صبح تا ۱۰ شب تهران (الف: ورود در بازه / ب: ورود در بازه + بستن ساعت ۱۰ شب)
+        "SUPERTREND_TEH":         dict(le=(ST == 1) & (prev(ST) == -1) & teh, se=(ST == -1) & (prev(ST) == 1) & teh, xl=ST == -1, xs=ST == 1, sl=2.0, tp=0, max_bars=288),
+        "SUPERTREND_TEH_CLOSE":   dict(le=(ST == 1) & (prev(ST) == -1) & teh, se=(ST == -1) & (prev(ST) == 1) & teh, xl=(ST == -1) | ~teh, xs=(ST == 1) | ~teh, sl=2.0, tp=0, max_bars=288),
+        "ICHIMOKU_TK_TEH":        dict(le=cross_up(ten, kij) & (c > ctop) & teh, se=cross_dn(ten, kij) & (c < cbot) & teh, sl=1.5, tp=3.0, max_bars=48),
+        "ICHIMOKU_TK_TEH_CLOSE":  dict(le=cross_up(ten, kij) & (c > ctop) & teh, se=cross_dn(ten, kij) & (c < cbot) & teh, xl=~teh, xs=~teh, sl=1.5, tp=3.0, max_bars=48),
         # --- معیار مقایسه: ورود تصادفی با همون مدیریت خروج ---
         "RANDOM_BASELINE":  dict(le=rnd < 0.01, se=(rnd >= 0.01) & (rnd < 0.02), sl=1.5, tp=3.0, max_bars=48),
     }

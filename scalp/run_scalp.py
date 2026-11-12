@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from scalp import strategies, simulate
 
 SYM = sys.argv[1]; N_MONTHS = 36
+ONLY = [x for x in os.environ.get("STRATS", "").split(",") if x]       # خالی = همهٔ استراتژی‌ها
 URL = "https://data.binance.vision/data/futures/um/monthly/klines/{s}/5m/{s}-5m-{m}.zip"
 d = datetime.date.today().replace(day=1); months = []
 for _ in range(N_MONTHS):
@@ -29,6 +30,7 @@ df15 = pd.DataFrame(dict(t=g.t.first(), o=g.o.first(), h=g.h.max(), l=g.l.min(),
 out = []
 for tf, df in (("5m", df5), ("15m", df15)):
     for name, cfg in strategies(df).items():
+        if ONLY and name not in ONLY: continue
         R = simulate(df, **cfg)
         if len(R): R["strategy"], R["tf"], R["symbol"] = name, tf, SYM; out.append(R)
         print(f"  {tf} {name}: {len(R)} trades, net {R.R_net.mean() if len(R) else 0:+.3f}R", flush=True)
