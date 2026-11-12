@@ -5,7 +5,8 @@ from scalp import strategies, simulate
 
 SYM = sys.argv[1]; N_MONTHS = 36
 ONLY = [x for x in os.environ.get("STRATS", "").split(",") if x]       # خالی = همهٔ استراتژی‌ها
-URL = "https://data.binance.vision/data/futures/um/monthly/klines/{s}/5m/{s}-5m-{m}.zip"
+BASE = os.environ.get("BASE", "5m")          # BASE=1h → مستقیم کندل ۱ ساعته دانلود می‌شه (سریع‌تر برای تست کل بازار)
+URL = "https://data.binance.vision/data/futures/um/monthly/klines/{s}/%s/{s}-%s-{m}.zip" % (BASE, BASE)
 d = datetime.date.today().replace(day=1); months = []
 for _ in range(N_MONTHS):
     d = (d - datetime.timedelta(days=1)).replace(day=1); months.append(d.strftime("%Y-%m"))
@@ -22,6 +23,7 @@ def get(m):
     return None
 
 with ThreadPoolExecutor(8) as ex: parts = [p for p in ex.map(get, sorted(months)) if p is not None]
+if not parts: print(SYM, "no data"); sys.exit(0)
 df5 = pd.concat(parts); df5.columns = ["t", "o", "h", "l", "c", "v"]
 df5 = df5.drop_duplicates("t").sort_values("t").reset_index(drop=True)
 print(SYM, len(df5), "candles", len(parts), "months")
@@ -29,6 +31,7 @@ g = df5.groupby((df5.t // 900_000).astype(np.int64))
 df15 = pd.DataFrame(dict(t=g.t.first(), o=g.o.first(), h=g.h.max(), l=g.l.min(), c=g.c.last(), v=g.v.sum())).reset_index(drop=True)
 g = df5.groupby((df5.t // 3_600_000).astype(np.int64))
 df60 = pd.DataFrame(dict(t=g.t.first(), o=g.o.first(), h=g.h.max(), l=g.l.min(), c=g.c.last(), v=g.v.sum())).reset_index(drop=True)
+if len(df60) < 24 * 120: print(SYM, "insufficient history", len(df60)); sys.exit(0)   # کمتر از ۱۲۰ روز → بررسی نمی‌شه
 TFS = os.environ.get("TFS", "5m,15m").split(",")
 out = []
 for tf, df in (("5m", df5), ("15m", df15), ("1h", df60)):

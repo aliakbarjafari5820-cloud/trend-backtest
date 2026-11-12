@@ -1,0 +1,55 @@
+name: scalp-universe
+on: [workflow_dispatch]
+permissions:
+  contents: write
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy numba requests
+      - run: cd scalp && python test_scalp.py
+      - run: |
+          cd smc && python universe.py
+          python -c "import json; s=[x for x in json.load(open('symbols.json')) if x not in ('BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT')]; json.dump(s, open('symbols.json','w')); print(len(s), 'symbols (5 design coins excluded)')"
+      - uses: actions/upload-artifact@v4
+        with: { name: universe, path: smc/symbols.json }
+  shard:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix: { shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy numba requests
+      - uses: actions/download-artifact@v4
+        with: { name: universe, path: scalp }
+      - run: |
+          cd scalp
+          for s in $(python -c "import json; print(' '.join(json.load(open('symbols.json'))[${{ matrix.shard }}::20]))"); do
+            STRATS=CLAUDE_TK_TRAIL,ICHIMOKU_TK_TEH,RANDOM_BASELINE TFS=1h BASE=1h python run_scalp.py $s || echo "failed $s"
+          done
+      - uses: actions/upload-artifact@v4
+        with: { name: "su-${{ matrix.shard }}", path: scalp/out/, if-no-files-found: ignore }
+  aggregate:
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy requests
+      - uses: actions/download-artifact@v4
+        with: { pattern: "su-*", path: scalp/all }
+      - run: cd scalp && mkdir -p results && python scalp_aggregate.py > results/console.txt; python scalp_report.py; tail -5 results/console.txt
+      - run: |
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          rm -rf scalp_universe_results && cp -r scalp/results scalp_universe_results
+          git add scalp_universe_results && git commit -m "Out-of-universe test of CLAUDE_TK_TRAIL 1h" && git pull --rebase && git push
