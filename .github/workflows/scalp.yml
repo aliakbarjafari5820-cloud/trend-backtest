@@ -1,0 +1,43 @@
+name: scalp
+on: [workflow_dispatch]
+permissions:
+  contents: write
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy numba requests
+      - run: cd scalp && python test_scalp.py
+  coin:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: { sym: [BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy numba requests
+      - run: cd scalp && python run_scalp.py ${{ matrix.sym }}
+      - uses: actions/upload-artifact@v4
+        with: { name: "scalp-${{ matrix.sym }}", path: scalp/out/ }
+  aggregate:
+    needs: coin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas numpy requests
+      - uses: actions/download-artifact@v4
+        with: { pattern: "scalp-*", path: scalp/all }
+      - run: cd scalp && python scalp_aggregate.py && python scalp_report.py
+      - run: |
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          rm -rf scalp_results && cp -r scalp/results scalp_results
+          git add scalp_results && git commit -m "Scalp backtest results" && git pull --rebase && git push
