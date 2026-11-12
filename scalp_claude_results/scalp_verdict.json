@@ -1,0 +1,38 @@
+{
+ "configs": 21,
+ "positive_all_net": 3,
+ "positive_all_gross": 18,
+ "positive_test": 5,
+ "passed_dev": [
+  [
+   "CLAUDE_TK_TRAIL",
+   "1h"
+  ],
+  [
+   "CLAUDE_ST_TRAIL",
+   "1h"
+  ],
+  [
+   "CLAUDE_ST_3R",
+   "1h"
+  ]
+ ],
+ "passed_val": [
+  [
+   "CLAUDE_TK_TRAIL",
+   "1h"
+  ]
+ ],
+ "passed_test": [
+  [
+   "CLAUDE_TK_TRAIL",
+   "1h"
+  ]
+ ],
+ "period": [
+  "2023-11-01",
+  "2026-10-31"
+ ],
+ "cut_val": "2025-08-19",
+ "cut_test": "2026-03-26"
+}
