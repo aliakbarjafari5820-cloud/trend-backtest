@@ -1,21 +1,16 @@
 {
- "1_most_profitable": "HYBRID 1h (net_profit_pct=-50.2)",
- "2_lowest_drawdown": "HYBRID 1h (maxDD_pct=68.0)",
- "3_most_coins_positive": "HYBRID 1h (coins_profitable_pct=39.4)",
+ "1_most_profitable": "ICHI_2R 1h (net_profit_pct=-20.6)",
+ "2_lowest_drawdown": "ICHI_2R 1h (maxDD_pct=53.5)",
+ "3_most_coins_positive": "HYBRID 1h (coins_profitable_pct=39.7)",
  "4_best_timeframe_by_avg_calmar": "1h",
- "5_best_in_bull_by_expR": "PA 1h (expectancy_R=-0.029)",
+ "5_best_in_bull_by_expR": "PA 1h (expectancy_R=-0.033)",
  "6_best_in_bear_by_expR": "HYBRID 1h (expectancy_R=-0.039)",
  "7_profitable_out_of_sample": [
   {
-   "strategy": "HYBRID",
-   "tf": "1h",
-   "net_profit_pct": 12.3
-  },
-  {
    "strategy": "PA",
    "tf": "1h",
-   "net_profit_pct": 23.3
+   "net_profit_pct": 34.6
   }
  ],
- "walk_forward_final_equity_usdt": 1
+ "walk_forward_final_equity_usdt": 2876
 }
