@@ -1,0 +1,19 @@
+       strategy tf    all_n  all_win  all_PF  all_expR  all_expR_gross  all_cost_R  all_coins_pos  dev_expR  val_expR  test_expR  test_PF  test_coins_pos  pass_dev  pass_val  pass_test
+CLAUDE_TK_TRAIL 1h  40967.0     29.9    1.01     0.003           0.044       0.041          346.0     0.020     0.069     -0.081     0.83           202.0     False     False      False
+ICHIMOKU_TK_TEH 1h 102327.0     35.7    0.91    -0.062           0.043       0.104          369.0    -0.004    -0.036     -0.160     0.79           229.0     False     False      False
+RANDOM_BASELINE 1h 171797.0     34.3    0.81    -0.146          -0.003       0.143          211.0    -0.057    -0.183     -0.252     0.71           203.0     False     False      False
+{
+ "configs": 3,
+ "positive_all_net": 1,
+ "positive_all_gross": 2,
+ "positive_test": 0,
+ "passed_dev": [],
+ "passed_val": [],
+ "passed_test": [],
+ "period": [
+  "2023-11-03",
+  "2026-10-31"
+ ],
+ "cut_val": "2025-08-20",
+ "cut_test": "2026-03-27"
+}
