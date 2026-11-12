@@ -1,0 +1,15 @@
+{
+ "configs": 40,
+ "positive_all_net": 0,
+ "positive_all_gross": 30,
+ "positive_test": 0,
+ "passed_dev": [],
+ "passed_val": [],
+ "passed_test": [],
+ "period": [
+  "2023-11-01",
+  "2026-10-31"
+ ],
+ "cut_val": "2025-08-19",
+ "cut_test": "2026-03-26"
+}
