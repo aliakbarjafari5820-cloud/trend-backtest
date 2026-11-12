@@ -65,28 +65,32 @@ class Structure:
         return 0
 
 
-def simulate_exit(o, h, l, c, t, k, d, sl, tp):
-    """از کندل ورود k جلو می‌ره؛ اگه SL و TP توی یه کندل بودن → SL (محافظه‌کارانه). گپ از SL → خروج روی اپن."""
+def simulate_exit(o, h, l, c, t, k, d, sl, tp, trail=None):
+    """از کندل ورود k جلو می‌ره؛ اگه SL و TP توی یه کندل بودن → SL (محافظه‌کارانه). گپ از SL → خروج روی اپن.
+    trail (اختیاری): آرایهٔ کیجون؛ اگه کلوز اون‌ور کیجون بسته بشه → خروج روی اپن کندل بعد (حد سود ثابت نداره)."""
     n = len(c)
     for i in range(k, n):
         if d == 1:
             if o[i] <= sl and i > k: return i, o[i]
             if l[i] <= sl: return i, sl
-            if h[i] >= tp: return i, tp
+            if trail is None and h[i] >= tp: return i, tp
         else:
             if o[i] >= sl and i > k: return i, o[i]
             if h[i] >= sl: return i, sl
-            if l[i] <= tp: return i, tp
+            if trail is None and l[i] <= tp: return i, tp
+        if trail is not None and i + 1 < n and (c[i] - trail[i]) * d < 0:
+            return i + 1, o[i + 1]
     return None, None
 
 
-def make_trade(df, k, d, sl, P, kind, setup, atr_val):
+def make_trade(df, k, d, sl, P, kind, setup, atr_val, trail=None):
     o, h, l, c, t = df["o"].values, df["h"].values, df["l"].values, df["c"].values, df["t"].values
     e = o[k]; risk = (e - sl) * d
     if risk <= 0 or risk / e < P["min_stop_pct"]: return None
     if not (P["sl_min_atr"] * atr_val <= risk <= P["sl_max_atr"] * atr_val): return None
     tp = e + d * (P["rr"] * risk + 2 * (COSTS["fee"] + COSTS["slip"]) * e)   # ۲R خالص بعد از هزینه‌ها
-    xi, xp = simulate_exit(o, h, l, c, t, k, d, sl, tp)
+    if trail is not None: tp = np.nan
+    xi, xp = simulate_exit(o, h, l, c, t, k, d, sl, tp, trail)
     if xi is None: return None
     stop_pct = risk / e
     R_gross = (xp - e) * d / risk
@@ -142,7 +146,7 @@ def run_pa(df, P=PARAMS):
     return trades
 
 
-def find_zone(o, h, l, c, a, b, d):
+def find_zone(o, h, l, c, a, b, d, fvg_only=False):
     """OB = آخرین کندل خلاف جهت بین سوئیپ (a) و BOS (b)؛ FVG = آخرین گپ سه‌کندلی در همین بازه.
     اگه هم‌پوشانی داشتن → ناحیهٔ مشترک (OB+FVG)، وگرنه OB، وگرنه FVG."""
     ob = fvg = None
@@ -152,6 +156,7 @@ def find_zone(o, h, l, c, a, b, d):
     for j in range(b, max(a + 2, 2) - 1, -1):
         if d == 1 and l[j] > h[j - 2]: fvg = (h[j - 2], l[j]); break
         if d == -1 and h[j] < l[j - 2]: fvg = (h[j], l[j - 2]); break
+    if fvg_only: return (fvg, "FVG") if fvg else (None, None)
     if ob and fvg:
         lo, hi = max(ob[0], fvg[0]), min(ob[1], fvg[1])
         if lo < hi: return (lo, hi), "OB+FVG"
@@ -160,10 +165,38 @@ def find_zone(o, h, l, c, a, b, d):
     return None, None
 
 
-def run_smc(df, P=PARAMS, hybrid=False):
+def ichimoku(h, l, c, tn=9, kn=26, bn=52):
+    H, L = pd.Series(h), pd.Series(l)
+    ten = ((H.rolling(tn).max() + L.rolling(tn).min()) / 2).values
+    kij = ((H.rolling(kn).max() + L.rolling(kn).min()) / 2).values
+    span_a = pd.Series((ten + kij) / 2).shift(kn).values           # ابر ۲۶ کندل جلوتر رسم می‌شه → مقدار امروز از ۲۶ کندل قبل
+    span_b = ((H.rolling(bn).max() + L.rolling(bn).min()) / 2).shift(kn).values
+    return ten, kij, span_a, span_b
+
+
+def ichimoku_htf_trend(df, htf_min=240):
+    """روند ایچیموکو ۴ ساعته برای هر کندل: ۱ = کلوز بالای ابر و تنکان > کیجون، ۱- = برعکس، ۰ = بقیه.
+    فقط از کندل‌های ۴ ساعتهٔ کاملاً بسته‌شده تا پایان کندل فعلی استفاده می‌شه (بدون نگاه به آینده)."""
+    t = df["t"].values; step = np.median(np.diff(t)) if len(t) > 1 else 3_600_000
+    g = df.groupby((df.t // (htf_min * 60_000)).astype(np.int64))
+    H4 = pd.DataFrame(dict(t=g.t.first(), h=g.h.max(), l=g.l.min(), c=g.c.last(), last=g.t.last())).reset_index(drop=True)
+    full = (H4["last"] + step) >= (H4.t + htf_min * 60_000)          # فقط کندل ۴ ساعتهٔ کامل
+    ten, kij, sa, sb = ichimoku(H4.h.values, H4.l.values, H4.c.values)
+    top, bot = np.fmax(sa, sb), np.fmin(sa, sb); cc = H4.c.values
+    reg = np.where((cc > top) & (ten > kij), 1, np.where((cc < bot) & (ten < kij), -1, 0))
+    reg = np.where(full.values, reg, 0)
+    close_t = H4.t.values + htf_min * 60_000
+    idx = np.searchsorted(close_t, t + step, side="right") - 1          # آخرین کندل ۴ ساعته‌ای که تا پایان این کندل بسته شده
+    out = np.where(idx >= 0, reg[np.clip(idx, 0, None)], 0)
+    return out
+
+
+def run_smc(df, P=PARAMS, hybrid=False, ichi=False, zones=None, trail=False, kind=None):
     o, h, l, c = df["o"].values, df["h"].values, df["l"].values, df["c"].values
     A = atr(h, l, c, P["atr_n"]); n = len(c); S = Structure(h, l, P["swing_k"])
-    kind = "HYBRID" if hybrid else "SMC"
+    kind = kind or ("HYBRID" if hybrid else "SMC")
+    IT = ichimoku_htf_trend(df) if ichi else None
+    KJ = ichimoku(h, l, c)[1] if trail else None
     trades, busy_until, used = [], -1, set()
     st = {1: None, -1: None}          # یه ستاپ فعال برای هر جهت
     for i in range(1, n - 1):
@@ -191,7 +224,7 @@ def run_smc(df, P=PARAMS, hybrid=False):
                 if i - s["ri"] > P["bos_wait"]: st[d] = None; continue
                 ref = S.highs if d == 1 else S.lows
                 if ref and ref[-1][1] < i and (c[i] - ref[-1][0]) * d >= P["brk_min_atr"] * A[i]:   # BOS/CHoCH: کلوز با قدرت ≥ ۰.۵ ATR
-                    zone, zt = find_zone(o, h, l, c, s["si"], i, d)
+                    zone, zt = find_zone(o, h, l, c, s["si"], i, d, fvg_only=(zones == "FVG"))
                     if zone is None: st[d] = None; continue
                     s.update(stage="zone", bi=i, zone=zone, zt=zt, touched=False)
                 continue
@@ -202,15 +235,19 @@ def run_smc(df, P=PARAMS, hybrid=False):
                 conf = s["touched"] and ((d == 1 and c[i] > o[i] and c[i] > lo) or
                                          (d == -1 and c[i] < o[i] and c[i] < hi))
                 if conf and hybrid and S.trend() != d: conf = False
+                if conf and ichi and IT[i] != d: conf = False
                 if conf:
                     st[d] = None
                     if i + 1 > busy_until:
                         sl = s["ext"] - d * P["sl_buffer_atr"] * A[i]
-                        tdict = make_trade(df, i + 1, d, sl, P, kind, s["zt"], A[i])
+                        tdict = make_trade(df, i + 1, d, sl, P, kind, s["zt"], A[i], KJ)
                         if tdict:
                             trades.append(tdict)
                             busy_until = int(np.searchsorted(df["t"].values, tdict["exit_t"]))
     return trades
 
 
-STRATEGIES = {"PA": run_pa, "SMC": lambda df: run_smc(df), "HYBRID": lambda df: run_smc(df, hybrid=True)}
+STRATEGIES = {"PA": run_pa, "SMC": lambda df: run_smc(df), "HYBRID": lambda df: run_smc(df, hybrid=True),
+              # ترکیب ایچیموکو: روند ۴ ساعتهٔ ایچیموکو + ساختار پرایس اکشن + ورود اسمارت مانی فقط از FVG
+              "ICHI_2R": lambda df: run_smc(df, hybrid=True, ichi=True, zones="FVG", kind="ICHI_2R"),
+              "ICHI_KIJUN": lambda df: run_smc(df, hybrid=True, ichi=True, zones="FVG", trail=True, kind="ICHI_KIJUN")}

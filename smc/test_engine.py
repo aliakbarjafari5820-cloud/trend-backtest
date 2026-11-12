@@ -129,6 +129,38 @@ def test_random_walk_no_lookahead_edge():
         assert R.mean() < 3*se, (name, R.mean(), se)
 
 
+def test_ichimoku_htf_no_lookahead():
+    from engine import ichimoku_htf_trend
+    rng = np.random.default_rng(7); c = 100*np.exp(np.cumsum(rng.normal(0, 0.01, 3000))); o = np.r_[c[0], c[:-1]]
+    df = pd.DataFrame(dict(t=np.arange(len(c))*3_600_000., o=o, h=np.maximum(o, c)*1.002, l=np.minimum(o, c)*0.998, c=c))
+    full = ichimoku_htf_trend(df)
+    for cut in (1500, 2001, 2502):                    # بریدن آینده نباید گذشته رو عوض کنه
+        part = ichimoku_htf_trend(df.iloc[:cut].reset_index(drop=True))
+        assert (part == full[:cut]).all(), cut
+    assert set(np.unique(full)) <= {-1, 0, 1} and (full != 0).sum() > 100
+
+
+def test_kijun_exit():
+    from engine import simulate_exit
+    o = np.array([100, 101, 102, 101, 99, 98.]); c = np.array([101, 102, 101, 99, 98, 97.])
+    h = np.maximum(o, c) + .1; l = np.minimum(o, c) - .1; t = np.arange(6)
+    kj = np.array([99, 99, 100, 100, 100, 100.])
+    i, px = simulate_exit(o, h, l, c, t, 1, 1, 90, np.nan, kj)
+    assert i == 4 and px == 99                       # کلوز کندل ۳ زیر کیجون → خروج روی اپن کندل ۴
+
+
+def test_ichi_strategies_random_walk_no_edge():
+    from engine import STRATEGIES
+    rng = np.random.default_rng(11); c = 100*np.exp(np.cumsum(rng.normal(0, 0.004, 60000)))
+    o = np.r_[c[0], c[:-1]]; w = np.abs(rng.normal(0, 0.002, len(c)))*c
+    df = pd.DataFrame(dict(t=np.arange(len(c))*3_600_000, o=o, h=np.maximum(o, c)+w, l=np.minimum(o, c)-w, c=c))
+    for name in ("ICHI_2R", "ICHI_KIJUN"):
+        tr = STRATEGIES[name](df); R = np.array([x["R_gross"] for x in tr])
+        assert len(R) > 30, (name, len(R))
+        assert all(x["setup"] == "FVG" for x in tr)
+        assert R.mean() < 3*R.std()/np.sqrt(len(R)) + 0.05, (name, R.mean())
+
+
 if __name__ == "__main__":
     import sys, inspect
     fails = 0

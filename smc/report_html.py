@@ -15,7 +15,7 @@ try:   # Chart.js داخل خود فایل گذاشته می‌شه تا گزا�
 except Exception:
     CHARTJS_TAG = f'<script src="{CDN}"></script>'
 
-NAMES = {"PA": "پرایس اکشن", "SMC": "اسمارت مانی", "HYBRID": "ترکیبی"}
+NAMES = {"PA": "پرایس اکشن", "SMC": "اسمارت مانی", "HYBRID": "ترکیبی", "ICHI_2R": "ایچیموکو+ (۲R)", "ICHI_KIJUN": "ایچیموکو+ (خروج کیجون)"}
 M["name"] = M.strategy.map(NAMES) + " · " + M.tf
 
 # --- قابل اتکا بودن: همهٔ شرط‌ها باید برقرار باشن
@@ -112,7 +112,7 @@ select,input{font:inherit;padding:4px 8px;border:1px solid var(--line);border-ra
 ul{margin:4px 0}code{font-size:12px}
 """
 JS = """
-const EQ=%s, TR=%s, NM={"PA":"پرایس اکشن","SMC":"اسمارت مانی","HYBRID":"ترکیبی"}, COL={"PA":"#2f5bd3","SMC":"#c2410c","HYBRID":"#15803d"};
+const EQ=%s, TR=%s, NM={"PA":"پرایس اکشن","SMC":"اسمارت مانی","HYBRID":"ترکیبی","ICHI_2R":"ایچیموکو+ (۲R)","ICHI_KIJUN":"ایچیموکو+ (کیجون)"}, COL={"PA":"#2f5bd3","SMC":"#c2410c","HYBRID":"#15803d","ICHI_2R":"#9333ea","ICHI_KIJUN":"#db2777"};
 if(typeof Chart==='undefined'){window.Chart=function(){};}
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function charts(){["5m","15m","1h"].forEach(tf=>{
@@ -135,7 +135,7 @@ tr_heads = ["استراتژی", "تایم", "نماد", "جهت", "ستاپ", "�
 page = f"""<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Final Comparison Report</title>
 {CHARTJS_TAG}<style>{CSS}</style></head><body><main>
-<h1>گزارش نهایی مقایسهٔ سه استراتژی{(" — " + os.environ["SYMBOLS"].replace("USDT","").replace(",", "، ")) if os.environ.get("SYMBOLS") else ""}</h1>
+<h1>گزارش نهایی مقایسهٔ استراتژی‌ها{(" — " + os.environ["SYMBOLS"].replace("USDT","").replace(",", "، ")) if os.environ.get("SYMBOLS") else ""}</h1>
 <div class="sub">پرایس اکشن کلاسیک · اسمارت مانی · ترکیبی — همهٔ قراردادهای دائمی USDT بایننس، تایم‌های ۵ و ۱۵ دقیقه و ۱ ساعته، سرمایهٔ اولیه ۱۰٬۰۰۰ USDT، ریسک ۱٪، حداکثر ۳ معاملهٔ همزمان، با کارمزد، اسلیپیج، فاندینگ واقعی و ریسک لیکویید.</div>
 <h2>نتیجهٔ نهایی</h2><div class="card">{verdict}{answer_text()}</div>
 <h2>جدول مقایسه</h2><div class="card">{main_tbl}<p class="sub">امتیاز اتکا = تعداد شرط‌های برقرار از ۶ شرط جدول بعدی. مرتب‌سازی: امتیاز، بعد Calmar.</p></div>
@@ -148,7 +148,7 @@ page = f"""<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">
 <h2>بهترین و بدترین ارزها — {NAMES[best.strategy]} {best.tf}</h2><div class="card">{coin_tbl}</div>
 <h2>کیفیت داده</h2><div class="card"><ul>{q_html}</ul><details><summary>فهرست نمادهای ناقص یا کنار گذاشته‌شده ({len(bad_q)})</summary>{table(bad_q, list(bad_q.columns), ["نماد","وضعیت","ماه‌های موجود","کندل","کندل گم‌شده","گپ بالای ۱ ساعت"])}</details></div>
 <h2>جزئیات معاملات (معاملات انجام‌شده در سبد، حداکثر ۱۵۰۰ معاملهٔ آخر هر ترکیب)</h2><div class="card">
-<div class="pager"><select id="fs"><option value="">همهٔ استراتژی‌ها</option><option value="PA">پرایس اکشن</option><option value="SMC">اسمارت مانی</option><option value="HYBRID">ترکیبی</option></select>
+<div class="pager"><select id="fs"><option value="">همهٔ استراتژی‌ها</option><option value="PA">پرایس اکشن</option><option value="SMC">اسمارت مانی</option><option value="HYBRID">ترکیبی</option><option value="ICHI_2R">ایچیموکو+ (۲R)</option><option value="ICHI_KIJUN">ایچیموکو+ (کیجون)</option></select>
 <select id="ft"><option value="">همهٔ تایم‌ها</option><option>5m</option><option>15m</option><option>1h</option></select><input id="fq" placeholder="نماد…" size="10">
 <button id="pv">قبلی</button><button id="nx">بعدی</button><span id="pg" class="sub"></span></div>
 <div class="tw"><table><thead><tr>{"".join(f"<th>{h}</th>" for h in tr_heads)}</tr></thead><tbody id="tb"></tbody></table></div></div>
