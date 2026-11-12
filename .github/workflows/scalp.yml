@@ -4,6 +4,7 @@ on:
     inputs:
       strats: { description: "فقط این استراتژی‌ها (خالی = همه)", required: false, default: "" }
       outdir: { description: "پوشهٔ خروجی", required: false, default: "scalp_results" }
+      tfs: { description: "تایم‌فریم‌ها", required: false, default: "5m,15m" }
 permissions:
   contents: write
 jobs:
@@ -27,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install pandas numpy numba requests
-      - run: cd scalp && STRATS="${{ inputs.strats }}" python run_scalp.py ${{ matrix.sym }}
+      - run: cd scalp && STRATS="${{ inputs.strats }}" TFS="${{ inputs.tfs }}" python run_scalp.py ${{ matrix.sym }}
       - uses: actions/upload-artifact@v4
         with: { name: "scalp-${{ matrix.sym }}", path: scalp/out/ }
   aggregate:

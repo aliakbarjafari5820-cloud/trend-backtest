@@ -56,6 +56,22 @@ def supertrend(h, l, c, n=10, m=3.0):
         dirn[i] = 1 if c[i] > fd[i-1] else (-1 if c[i] < fu[i-1] else dirn[i-1])
     return dirn
 
+def htf_trend(df, minutes=240):
+    """روند ۴ ساعته برای هر کندل، فقط از کندل‌های ۴ ساعتهٔ بسته‌شده: ۱ = کلوز بالای ابر ایچیموکو و EMA50 > EMA200، ۱- برعکس."""
+    t = df["t"].values.astype(np.int64); step = int(np.median(np.diff(t))) if len(t) > 1 else 300_000
+    g = df.groupby((df.t // (minutes * 60_000)).astype(np.int64))
+    H = pd.DataFrame(dict(t=g.t.first(), h=g.h.max(), l=g.l.min(), c=g.c.last(), last=g.t.last())).reset_index(drop=True)
+    Hs, Ls, cc = pd.Series(H.h), pd.Series(H.l), H.c.values
+    ten = ((Hs.rolling(9).max() + Ls.rolling(9).min()) / 2).values; kij = ((Hs.rolling(26).max() + Ls.rolling(26).min()) / 2).values
+    sa = pd.Series((ten + kij) / 2).shift(26).values; sb = ((Hs.rolling(52).max() + Ls.rolling(52).min()) / 2).shift(26).values
+    e50, e200 = ema(cc, 50), ema(cc, 200)
+    reg = np.where((cc > np.fmax(sa, sb)) & (e50 > e200), 1, np.where((cc < np.fmin(sa, sb)) & (e50 < e200), -1, 0))
+    full = ((H["last"] + step) >= (H.t + minutes * 60_000)).values
+    reg = np.where(full, reg, 0)
+    idx = np.searchsorted(H.t.values + minutes * 60_000, t + step, side="right") - 1
+    return np.where(idx >= 0, reg[np.clip(idx, 0, None)], 0)
+
+
 def prev(x):
     """مقدار کندل قبل (برای کندل اول، خودش) — بدون چرخش آرایه از انتها."""
     x = np.asarray(x); return np.r_[x[:1], x[:-1]]
@@ -154,6 +170,8 @@ def strategies(df):
     step = int(np.median(np.diff(t))) if len(t) > 1 else 300_000
     cmin = ((t + step) // 60_000) % 1440
     teh = (cmin > 390) & (cmin <= 1110)
+    HT = htf_trend(df)
+    bigstop = (2.0 * A / c) >= 0.005          # حد ضرر (۲ ATR) حداقل ۰.۵٪ قیمت → هزینه‌ها حداکثر حدود ۰.۱۸R
 
     S = {
         # --- برگشت به میانگین ---
@@ -183,6 +201,16 @@ def strategies(df):
         "SUPERTREND_TEH_CLOSE":   dict(le=(ST == 1) & (prev(ST) == -1) & teh, se=(ST == -1) & (prev(ST) == 1) & teh, xl=(ST == -1) | ~teh, xs=(ST == 1) | ~teh, sl=2.0, tp=0, max_bars=288),
         "ICHIMOKU_TK_TEH":        dict(le=cross_up(ten, kij) & (c > ctop) & teh, se=cross_dn(ten, kij) & (c < cbot) & teh, sl=1.5, tp=3.0, max_bars=48),
         "ICHIMOKU_TK_TEH_CLOSE":  dict(le=cross_up(ten, kij) & (c > ctop) & teh, se=cross_dn(ten, kij) & (c < cbot) & teh, xl=~teh, xs=~teh, sl=1.5, tp=3.0, max_bars=48),
+        # --- استراتژی طراحی‌شده (پیش از تست ثابت شده؛ ۴ نسخه): روند ۴ ساعته + ساعت ۱۰ تا ۲۲ تهران + حد ضرر ≥ ۰.۵٪ قیمت
+        #     ورود: پایان پولبک روی تایم پایین (سوپرترند یا کراس تنکان/کیجون دوباره هم‌جهت روند ۴ ساعته)
+        "CLAUDE_ST_3R":     dict(le=(ST == 1) & (prev(ST) == -1) & (HT == 1) & teh & bigstop, se=(ST == -1) & (prev(ST) == 1) & (HT == -1) & teh & bigstop,
+                                 sl=2.0, tp=6.0, max_bars=192),
+        "CLAUDE_ST_TRAIL":  dict(le=(ST == 1) & (prev(ST) == -1) & (HT == 1) & teh & bigstop, se=(ST == -1) & (prev(ST) == 1) & (HT == -1) & teh & bigstop,
+                                 xl=(ST == -1) | (HT == -1), xs=(ST == 1) | (HT == 1), sl=2.0, tp=0, max_bars=10**6),
+        "CLAUDE_TK_3R":     dict(le=cross_up(ten, kij) & (c > ctop) & (HT == 1) & teh & bigstop, se=cross_dn(ten, kij) & (c < cbot) & (HT == -1) & teh & bigstop,
+                                 sl=2.0, tp=6.0, max_bars=192),
+        "CLAUDE_TK_TRAIL":  dict(le=cross_up(ten, kij) & (c > ctop) & (HT == 1) & teh & bigstop, se=cross_dn(ten, kij) & (c < cbot) & (HT == -1) & teh & bigstop,
+                                 xl=(c < kij) | (HT == -1), xs=(c > kij) | (HT == 1), sl=2.0, tp=0, max_bars=10**6),
         # --- معیار مقایسه: ورود تصادفی با همون مدیریت خروج ---
         "RANDOM_BASELINE":  dict(le=rnd < 0.01, se=(rnd >= 0.01) & (rnd < 0.02), sl=1.5, tp=3.0, max_bars=48),
     }

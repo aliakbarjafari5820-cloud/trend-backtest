@@ -30,6 +30,12 @@ def test_costs():
     assert (R.R_net < R.R_gross).all() and len(R) > 10
     tp = R[R.kind == 1]; assert np.allclose(tp.R_gross, 2.0, atol=1e-9)    # TP = ۳ ATR / ریسک ۱.۵ ATR = ۲R
 
+def test_htf_no_lookahead():
+    from scalp import htf_trend
+    df = rw(60000, seed=5); full = htf_trend(df)
+    for cut in (20001, 40017):
+        assert (htf_trend(df.iloc[:cut].reset_index(drop=True)) == full[:cut]).all(), cut
+
 if __name__ == "__main__":
     fails = 0
     for n, f in list(globals().items()):

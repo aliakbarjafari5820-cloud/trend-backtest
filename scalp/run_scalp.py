@@ -27,8 +27,12 @@ df5 = df5.drop_duplicates("t").sort_values("t").reset_index(drop=True)
 print(SYM, len(df5), "candles", len(parts), "months")
 g = df5.groupby((df5.t // 900_000).astype(np.int64))
 df15 = pd.DataFrame(dict(t=g.t.first(), o=g.o.first(), h=g.h.max(), l=g.l.min(), c=g.c.last(), v=g.v.sum())).reset_index(drop=True)
+g = df5.groupby((df5.t // 3_600_000).astype(np.int64))
+df60 = pd.DataFrame(dict(t=g.t.first(), o=g.o.first(), h=g.h.max(), l=g.l.min(), c=g.c.last(), v=g.v.sum())).reset_index(drop=True)
+TFS = os.environ.get("TFS", "5m,15m").split(",")
 out = []
-for tf, df in (("5m", df5), ("15m", df15)):
+for tf, df in (("5m", df5), ("15m", df15), ("1h", df60)):
+    if tf not in TFS: continue
     for name, cfg in strategies(df).items():
         if ONLY and name not in ONLY: continue
         R = simulate(df, **cfg)
