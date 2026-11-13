@@ -1,0 +1,26 @@
+       strategy tf    all_n  all_win  all_PF  all_expR  all_expR_gross  all_cost_R  all_coins_pos  dev_expR  val_expR  test_expR  test_PF  test_coins_pos  pass_dev  pass_val  pass_test
+  KAYO_KN_GL_MH 4h  31623.0     34.1    0.99    -0.010           0.023       0.033          366.0     0.053    -0.023     -0.083     0.88           270.0     False     False      False
+  KAYO_KN_GL_MH 1h 133091.0     34.2    0.98    -0.017           0.027       0.044          326.0     0.043    -0.042     -0.078     0.89           242.0     False     False      False
+RANDOM_BASELINE 4h  47210.0     35.2    0.95    -0.035           0.017       0.052          349.0    -0.005     0.007     -0.117     0.84           256.0     False     False      False
+     KAYO_KN_GL 1h 185611.0     32.4    0.85    -0.113          -0.029       0.084          121.0    -0.085    -0.119     -0.148     0.81           137.0     False     False      False
+ KAYO_KN_GL_KJC 4h   3886.0     31.5    0.84    -0.114          -0.056       0.058          265.0    -0.057    -0.075     -0.194     0.75           188.0     False     False      False
+ KAYO_KN_GL_KJC 1h  17364.0     32.4    0.85    -0.116          -0.027       0.088          266.0    -0.101    -0.094     -0.145     0.81           258.0     False     False      False
+        KAYO_KN 1h 221727.0     32.1    0.84    -0.121          -0.037       0.084           82.0    -0.098    -0.112     -0.159     0.79           106.0     False     False      False
+        KAYO_KN 4h  54814.0     31.0    0.83    -0.126          -0.070       0.056          203.0    -0.058    -0.135     -0.203     0.73           192.0     False     False      False
+     KAYO_KN_GL 4h  45495.0     30.6    0.81    -0.139          -0.082       0.057          197.0    -0.081    -0.147     -0.203     0.74           202.0     False     False      False
+RANDOM_BASELINE 1h 171797.0     34.3    0.81    -0.146          -0.003       0.143          211.0    -0.057    -0.179     -0.256     0.71           193.0     False     False      False
+{
+ "configs": 10,
+ "positive_all_net": 0,
+ "positive_all_gross": 3,
+ "positive_test": 0,
+ "passed_dev": [],
+ "passed_val": [],
+ "passed_test": [],
+ "period": [
+  "2023-11-04",
+  "2026-10-31"
+ ],
+ "cut_val": "2025-08-20",
+ "cut_test": "2026-03-27"
+}
