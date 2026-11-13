@@ -1,0 +1,29 @@
+{
+ "configs": 12,
+ "positive_all_net": 3,
+ "positive_all_gross": 8,
+ "positive_test": 0,
+ "passed_dev": [
+  [
+   "ICHIMOKU_TK_TEH",
+   "4h"
+  ],
+  [
+   "KAYO_KN_GL_MH",
+   "4h"
+  ]
+ ],
+ "passed_val": [
+  [
+   "ICHIMOKU_TK_TEH",
+   "4h"
+  ]
+ ],
+ "passed_test": [],
+ "period": [
+  "2023-11-04",
+  "2026-10-30"
+ ],
+ "cut_val": "2025-08-20",
+ "cut_test": "2026-03-26"
+}
