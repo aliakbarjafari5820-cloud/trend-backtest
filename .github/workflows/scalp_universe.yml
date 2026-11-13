@@ -1,5 +1,10 @@
 name: scalp-universe
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      strats: { required: false, default: "CLAUDE_TK_TRAIL,ICHIMOKU_TK_TEH,RANDOM_BASELINE" }
+      tfs: { required: false, default: "1h" }
+      outdir: { required: false, default: "scalp_universe_results" }
 permissions:
   contents: write
 jobs:
@@ -33,7 +38,7 @@ jobs:
       - run: |
           cd scalp
           for s in $(python -c "import json; print(' '.join(json.load(open('symbols.json'))[${{ matrix.shard }}::20]))"); do
-            STRATS=CLAUDE_TK_TRAIL,ICHIMOKU_TK_TEH,RANDOM_BASELINE TFS=1h BASE=1h python run_scalp.py $s || echo "failed $s"
+            STRATS="${{ inputs.strats }}" TFS="${{ inputs.tfs }}" BASE=1h python run_scalp.py $s || echo "failed $s"
           done
       - uses: actions/upload-artifact@v4
         with: { name: "su-${{ matrix.shard }}", path: scalp/out/, if-no-files-found: ignore }
@@ -51,5 +56,5 @@ jobs:
       - run: cd scalp && mkdir -p results && python scalp_aggregate.py > results/console.txt; python scalp_report.py; tail -5 results/console.txt
       - run: |
           git config user.name "github-actions"; git config user.email "actions@github.com"
-          rm -rf scalp_universe_results && cp -r scalp/results scalp_universe_results
-          git add scalp_universe_results && git commit -m "Out-of-universe test of CLAUDE_TK_TRAIL 1h" && git pull --rebase && git push
+          rm -rf "${{ inputs.outdir }}" && cp -r scalp/results "${{ inputs.outdir }}"
+          git add "${{ inputs.outdir }}" && git commit -m "Out-of-universe test: ${{ inputs.strats }}" && git pull --rebase && git push
