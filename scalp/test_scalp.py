@@ -36,6 +36,29 @@ def test_htf_no_lookahead():
     for cut in (20001, 40017):
         assert (htf_trend(df.iloc[:cut].reset_index(drop=True)) == full[:cut]).all(), cut
 
+def test_kayo_no_lookahead():
+    from kayo import kayo_strategies
+    df = rw(30000, seed=8); full = kayo_strategies(df); cut = 21000
+    part = kayo_strategies(df.iloc[:cut].reset_index(drop=True))
+    for name in full:
+        for key in ("le", "se", "sld", "tpd"):
+            a = np.nan_to_num(np.asarray(full[name][key][:cut], float)); b = np.nan_to_num(np.asarray(part[name][key][:cut], float))
+            assert np.allclose(a, b), (name, key, int((~np.isclose(a, b)).sum()))
+
+def test_kayo_rr_and_edge():
+    from kayo import kayo_strategies
+    df = rw(80000, seed=9)
+    for name, cfg in kayo_strategies(df).items():
+        R = simulate(df, **cfg)
+        if len(R) < 20: continue
+        tp = R[R.kind == 1]; assert np.allclose(tp.R_gross, 2.0), name          # حد ضرر = نصف تارگت → ۲R
+        assert R.R_gross.mean() < 4*R.R_gross.std()/np.sqrt(len(R)) + 0.05, (name, R.R_gross.mean())
+
+def test_kjc():
+    from kayo import kjc_ok
+    kij = np.repeat(np.arange(100.), 3)[:300].astype(float)        # هر ۳ کندل یه پله → فلت‌ها منظم
+    ok = kjc_ok(kij); assert ok.dtype == bool and len(ok) == 300
+
 if __name__ == "__main__":
     fails = 0
     for n, f in list(globals().items()):

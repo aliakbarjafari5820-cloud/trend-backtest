@@ -2,6 +2,7 @@
 import io, sys, os, zipfile, datetime, requests, numpy as np, pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 from scalp import strategies, simulate
+from kayo import kayo_strategies
 
 SYM = sys.argv[1]; N_MONTHS = 36
 ONLY = [x for x in os.environ.get("STRATS", "").split(",") if x]       # خالی = همهٔ استراتژی‌ها
@@ -32,11 +33,18 @@ df15 = pd.DataFrame(dict(t=g.t.first(), o=g.o.first(), h=g.h.max(), l=g.l.min(),
 g = df5.groupby((df5.t // 3_600_000).astype(np.int64))
 df60 = pd.DataFrame(dict(t=g.t.first(), o=g.o.first(), h=g.h.max(), l=g.l.min(), c=g.c.last(), v=g.v.sum())).reset_index(drop=True)
 if len(df60) < 24 * 120: print(SYM, "insufficient history", len(df60)); sys.exit(0)   # کمتر از ۱۲۰ روز → بررسی نمی‌شه
+g = df60.groupby((df60.t // 14_400_000).astype(np.int64))
+df240 = pd.DataFrame(dict(t=g.t.first(), o=g.o.first(), h=g.h.max(), l=g.l.min(), c=g.c.last(), v=g.v.sum())).reset_index(drop=True)
 TFS = os.environ.get("TFS", "5m,15m").split(",")
 out = []
-for tf, df in (("5m", df5), ("15m", df15), ("1h", df60)):
+def all_strats(df):
+    out = {}
+    if not ONLY or any(not x.startswith("KAYO") for x in ONLY): out.update(strategies(df))
+    if not ONLY or any(x.startswith("KAYO") for x in ONLY): out.update(kayo_strategies(df))
+    return out
+for tf, df in (("5m", df5), ("15m", df15), ("1h", df60), ("4h", df240)):
     if tf not in TFS: continue
-    for name, cfg in strategies(df).items():
+    for name, cfg in all_strats(df).items():
         if ONLY and name not in ONLY: continue
         R = simulate(df, **cfg)
         if len(R): R["strategy"], R["tf"], R["symbol"] = name, tf, SYM; out.append(R)

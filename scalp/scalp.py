@@ -81,21 +81,21 @@ def cross_dn(a, b): return (a < b) & (prev(a) >= prev(b))
 
 # ---------------- موتور خروج ----------------
 @njit(cache=True)
-def _sim(o, h, l, c, t, A, le, se, xl, xs, sl_m, tp_m, max_bars, eod):
+def _sim(o, h, l, c, t, A, le, se, xl, xs, SLD, TPD, max_bars, eod):
     n = len(c); out = []; i = 1
     while i < n - 2:
         d = 1 if le[i] else (-1 if se[i] else 0)
-        if d == 0 or not (A[i] > 0):
+        if d == 0 or not (A[i] > 0) or not (SLD[i] > 0):
             i += 1; continue
-        k = i + 1; e = o[k]; risk = sl_m * A[i]
-        sl = e - d * risk; tp = e + d * tp_m * A[i] if tp_m > 0 else np.nan
+        k = i + 1; e = o[k]; risk = SLD[i]
+        sl = e - d * risk; tp = e + d * TPD[i] if TPD[i] > 0 else np.nan
         xi = -1; xp = 0.0; kind = 0                   # kind: 0=SL 1=TP 2=سفارشی/زمانی
         for j in range(k, n):
             if j > k and ((d == 1 and o[j] <= sl) or (d == -1 and o[j] >= sl)):
                 xi, xp, kind = j, o[j], 0; break
             if (d == 1 and l[j] <= sl) or (d == -1 and h[j] >= sl):
                 xi, xp, kind = j, sl, 0; break
-            if tp_m > 0 and ((d == 1 and h[j] >= tp) or (d == -1 and l[j] <= tp)):
+            if TPD[i] > 0 and ((d == 1 and h[j] >= tp) or (d == -1 and l[j] <= tp)):
                 xi, xp, kind = j, tp, 1; break
             if j + 1 < n:
                 cust = (d == 1 and xl[j]) or (d == -1 and xs[j])
@@ -109,13 +109,17 @@ def _sim(o, h, l, c, t, A, le, se, xl, xs, sl_m, tp_m, max_bars, eod):
     return out
 
 
-def simulate(df, le, se, sl=1.5, tp=3.0, max_bars=48, xl=None, xs=None, eod=False):
+def simulate(df, le, se, sl=1.5, tp=3.0, max_bars=48, xl=None, xs=None, eod=False, sld=None, tpd=None):
+    """sl/tp: ضریب ATR. sld/tpd (اختیاری): فاصلهٔ حد ضرر/حد سود به قیمت برای هر کندل سیگنال (جایگزین ضریب ATR)."""
     o, h, l, c, t = [df[x].values.astype(np.float64) for x in "ohlct"]
     A = atr(h, l, c); n = len(c)
     z = np.zeros(n, dtype=np.bool_)
     le = np.nan_to_num(le).astype(np.bool_); se = np.nan_to_num(se).astype(np.bool_)
     xl = z if xl is None else np.nan_to_num(xl).astype(np.bool_); xs = z if xs is None else np.nan_to_num(xs).astype(np.bool_)
-    rows = _sim(o, h, l, c, t.astype(np.int64), np.nan_to_num(A), le, se, xl, xs, float(sl), float(tp if tp else 0), int(max_bars), bool(eod))
+    A0 = np.nan_to_num(A)
+    SLD = np.nan_to_num(np.asarray(sld, float)) if sld is not None else sl * A0
+    TPD = np.nan_to_num(np.asarray(tpd, float)) if tpd is not None else (tp if tp else 0) * A0
+    rows = _sim(o, h, l, c, t.astype(np.int64), A0, le, se, xl, xs, SLD.astype(np.float64), TPD.astype(np.float64), int(max_bars), bool(eod))
     if not rows: return pd.DataFrame()
     R = pd.DataFrame(rows, columns=["k", "xi", "side", "entry", "exit", "risk", "kind"])
     R["entry_t"] = t[R.k.values].astype(np.int64); R["exit_t"] = t[R.xi.values].astype(np.int64)
